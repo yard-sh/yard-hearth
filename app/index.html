@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hearth</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app" id="app" hidden>
+      <!-- server rail -->
+      <nav class="rail" aria-label="Servers">
+        <button class="pill home" id="railHome" type="button" title="Hearth" aria-label="Hearth">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>
+        </button>
+        <div class="rail-sep"></div>
+        <div class="rail-list" id="railList"></div>
+        <button class="pill add" id="railAdd" type="button" title="Add a server" aria-label="Add a server">+</button>
+      </nav>
+
+      <!-- channel sidebar -->
+      <aside class="sidebar">
+        <header class="sidebar-head">
+          <button class="server-btn" id="serverBtn" type="button">
+            <span class="server-name" id="serverName">Hearth</span>
+            <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5z"/></svg>
+          </button>
+        </header>
+
+        <div class="channels" id="channelPane">
+          <div class="cat">
+            <span class="cat-label">Text channels</span>
+            <button class="cat-add" id="channelAdd" type="button" title="Create channel" aria-label="Create channel" hidden>+</button>
+          </div>
+          <ul class="channel-list" id="channelList"></ul>
+        </div>
+
+        <footer class="me-bar">
+          <span class="avatar" id="meAvatar">?</span>
+          <span class="me-text">
+            <span class="me-name" id="meName">…</span>
+            <span class="me-sub" id="meSub">online</span>
+          </span>
+          <button class="icon-btn" id="profileBtn" type="button" title="Edit profile" aria-label="Edit profile">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7z"/><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-1.7-1L15 3H9l-.3 2.6a7.6 7.6 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 0 0 1.7 1L9 21h6l.3-2.6a7.6 7.6 0 0 0 1.7-1l2.4 1 2-3.4z" opacity=".55"/></svg>
+          </button>
+        </footer>
+      </aside>
+
+      <!-- message pane -->
+      <main class="main">
+        <header class="topbar">
+          <span class="hash">#</span>
+          <h1 class="channel-title" id="channelTitle">no channel</h1>
+          <span class="role-chip" id="roleChip" hidden></span>
+          <div class="spacer"></div>
+          <button class="icon-btn" id="membersBtn" type="button" title="Members" aria-label="Members">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-3.3 0-6 1.8-6 4v2h12v-2c0-2.2-2.7-4-6-4zm8-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0 2c-.7 0-1.4.1-2 .3 1.8 1 3 2.6 3 4.7v1h5v-2c0-2.2-2.7-4-6-4z"/></svg>
+          </button>
+        </header>
+
+        <section class="messages" id="messages" aria-live="polite"></section>
+
+        <div class="typing" id="typing"></div>
+
+        <form class="composer" id="composer" autocomplete="off">
+          <input
+            id="composerInput"
+            type="text"
+            maxlength="2000"
+            placeholder="Message"
+            aria-label="Message"
+            disabled
+          />
+          <button type="submit" class="send" id="sendBtn" disabled aria-label="Send">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20.5 21 12 3 3.5 3 10l12 2-12 2z"/></svg>
+          </button>
+        </form>
+      </main>
+
+      <!-- member list -->
+      <aside class="members" id="membersPane">
+        <h2 class="members-head">Members</h2>
+        <div class="members-body" id="membersList"></div>
+      </aside>
+    </div>
+
+    <!-- empty state: no servers yet -->
+    <div class="blank" id="blank" hidden>
+      <div class="blank-card">
+        <div class="blank-mark">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>
+        </div>
+        <h1>Welcome to Hearth</h1>
+        <p>Create a server for your group, or join one with the ID a friend sent you.</p>
+        <div class="blank-actions">
+          <button class="btn primary" data-open="create">Create a server</button>
+          <button class="btn ghost" data-open="join">Join with an ID</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- dialogs -->
+    <div class="scrim" id="scrim" hidden></div>
+
+    <div class="modal" id="modal-create" hidden role="dialog" aria-modal="true" aria-labelledby="createTitle">
+      <h2 id="createTitle">Create a server</h2>
+      <p class="modal-sub">You will be its admin: you can create and delete channels, delete anyone's messages, and promote other admins.</p>
+      <form id="createForm">
+        <label for="createName">Server name</label>
+        <input id="createName" maxlength="50" placeholder="Study group" required autocomplete="off" />
+        <p class="err" id="createErr" hidden></p>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" data-close>Cancel</button>
+          <button type="submit" class="btn primary">Create</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-join" hidden role="dialog" aria-modal="true" aria-labelledby="joinTitle">
+      <h2 id="joinTitle">Join a server</h2>
+      <p class="modal-sub">Enter the six-character server ID someone shared with you.</p>
+      <form id="joinForm">
+        <label for="joinCode">Server ID</label>
+        <input id="joinCode" class="code-input" maxlength="6" placeholder="A7K2M9" required autocomplete="off" spellcheck="false" />
+        <p class="err" id="joinErr" hidden></p>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" data-close>Cancel</button>
+          <button type="submit" class="btn primary">Join</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-channel" hidden role="dialog" aria-modal="true" aria-labelledby="channelTitleHead">
+      <h2 id="channelTitleHead">Create a channel</h2>
+      <p class="modal-sub">Channel names are lowercase and hyphenated.</p>
+      <form id="channelForm">
+        <label for="channelName">Channel name</label>
+        <input id="channelName" maxlength="32" placeholder="off-topic" required autocomplete="off" />
+        <p class="err" id="channelErr" hidden></p>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" data-close>Cancel</button>
+          <button type="submit" class="btn primary">Create</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal" id="modal-profile" hidden role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+      <h2 id="profileTitle">Your profile</h2>
+      <p class="modal-sub">This is the name everyone sees on your messages.</p>
+      <form id="profileForm">
+        <label for="profileName">Username</label>
+        <input id="profileName" maxlength="32" required autocomplete="off" />
+        <p class="err" id="profileErr" hidden></p>
+        <div class="modal-actions">
+          <button type="button" class="btn ghost" data-close>Cancel</button>
+          <button type="submit" class="btn primary">Save</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal wide" id="modal-server" hidden role="dialog" aria-modal="true" aria-labelledby="serverTitle">
+      <h2 id="serverTitle">Server</h2>
+      <div class="invite">
+        <span class="invite-label">Server ID — share this to invite people</span>
+        <div class="invite-row">
+          <code id="inviteCode">------</code>
+          <button type="button" class="btn ghost small" id="copyCode">Copy</button>
+        </div>
+      </div>
+      <div class="member-admin" id="memberAdmin"></div>
+      <div class="modal-actions between">
+        <button type="button" class="btn danger" id="serverDanger">Leave server</button>
+        <button type="button" class="btn ghost" data-close>Done</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
+
+    <script src="live.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

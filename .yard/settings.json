@@ -1,0 +1,31 @@
+{
+  "version": 7,
+  "project_slug": "hearth",
+  "ignore_files": [],
+  "services": [
+    {
+      "dir": "app",
+      "name": "app",
+      "url": "/",
+      "access": "authenticated",
+      "database_access": true,
+      "objects": [
+        {
+          "class": "Channel",
+          "binding": "CHANNELS"
+        }
+      ]
+    }
+  ],
+  "pricing": {
+    "tiers": [
+      {
+        "name": "Base",
+        "price_cents": 0,
+        "is_default": true,
+        "pricing_model": "one_time",
+        "description": "Free forever"
+      }
+    ]
+  }
+}
