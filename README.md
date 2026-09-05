@@ -18,7 +18,7 @@ people in and hands the service trusted `X-Yard-*` headers. Locally, a
 | ---------------- | ----------------------- |
 | `member`         | you, the project owner  |
 | `signed-in`      | a signed-in visitor     |
-| `customer:base`  | someone on the Base tier|
+| `user:base`      | someone on the Base tier|
 | `trial`          | someone on a trial      |
 
 Switch at `http://localhost:9880/hearth/__yard/auth/login`, or start the server
