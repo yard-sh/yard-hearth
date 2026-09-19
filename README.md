@@ -14,9 +14,11 @@ profiles.
 yard dev --port 9880          # http://localhost:9880/hearth/
 ```
 
-There is no sign-up screen and no login code in this repo — Yard's edge signs
-people in and hands the service trusted `X-Yard-*` headers. Locally, a
-**persona** stands in for a real account, and each persona is a different user:
+There is no sign-up screen and no login code in this repo: Yard Auth signs
+people in (a consent screen the first time, silent after that) and hands the
+service trusted `X-Yard-*` headers. Yard Auth is included with Basic and Pro,
+and the `authenticated` service cannot be deployed without it. Locally, a
+**persona** stands in for it, and each persona is a different user:
 
 | Persona          | Who they are            |
 | ---------------- | ----------------------- |
@@ -68,4 +70,5 @@ Nothing serves a draft — publishing is the deploy. To try a release before
 buyers reach it, `yard sandbox create preview`, publish, then
 `yard sandbox pin v0.1.0 --sandbox preview` and `yard service open --sandbox preview`.
 
-Contracts: `/docs/v1/platform/services`, `/docs/v1/platform/services/objects`.
+Contracts: `/docs/v1/platform/services`, `/docs/v1/platform/services/objects`,
+`/docs/v1/platform/services/yard-auth`.
