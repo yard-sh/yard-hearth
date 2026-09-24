@@ -702,15 +702,38 @@ h2 {
   box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.35);
 }
 
-.join-row {
-  margin-top: 20px;
+.link-row {
+  margin-top: 12px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 10px;
+}
+
+.link-field {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--app-rail);
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--app-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.link-field b {
+  color: var(--white);
+  font-weight: 700;
+}
+
+.card-label.or {
+  margin-top: 24px;
 }
 
 .join-note {
+  margin-top: 14px;
   font-size: 13px;
   color: var(--app-muted);
 }
@@ -1063,11 +1086,6 @@ h2 {
 
   .join {
     padding: 20px;
-  }
-
-  .join-row {
-    flex-direction: column;
-    align-items: flex-start;
   }
 
   .closer {

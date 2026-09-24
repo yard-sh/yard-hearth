@@ -5,7 +5,7 @@
 </p>
 
 A small Slack/Discord-style chat app built on Yard. Servers you create and join
-with an ID, channels inside them, realtime messages, two roles, and editable
+with an invite link or ID, channels inside them, realtime messages, two roles, and editable
 profiles.
 
 ## Run it
@@ -69,6 +69,12 @@ from the attachment the handler stamped at connect time — never from the clien
 
 **Server IDs are join codes.** Six characters from an alphabet with no `I`, `O`,
 `0` or `1`, because people read them aloud and type them by hand.
+
+**Invite links are the same code in a URL.** Server settings offers a link of
+the form `…/app/?join=<server ID>`. Opening it shows who invited you to what
+(`GET api/invites/<id>` returns the server's name and member count) and joins on
+accept; the app then drops `?join=` from the address bar. The join box also takes
+a pasted link, since `POST api/servers/join` pulls the ID out of either.
 
 ## Ship it
 

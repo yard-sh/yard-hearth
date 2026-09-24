@@ -34,7 +34,8 @@
     "composer", "composerInput", "sendBtn", "membersPane", "membersList", "scrim",
     "createForm", "createName", "createErr", "joinForm", "joinCode", "joinErr",
     "channelForm", "channelName", "channelErr", "profileForm", "profileName",
-    "profileErr", "inviteCode", "copyCode", "memberAdmin", "serverDanger", "toast",
+    "profileErr", "inviteCode", "copyCode", "inviteLink", "copyLink", "memberAdmin",
+    "serverDanger", "toast", "inviteMark", "inviteName", "inviteMeta", "inviteErr", "inviteAccept",
   ].forEach(function (id) {
     els[id] = $(id);
   });
@@ -605,7 +606,7 @@
     openModal = node;
     node.hidden = false;
     els.scrim.hidden = false;
-    var field = node.querySelector("input");
+    var field = node.querySelector("input:not([readonly])");
     if (field) setTimeout(function () { field.focus(); field.select(); }, 0);
   }
 
@@ -613,7 +614,7 @@
     if (openModal) openModal.hidden = true;
     openModal = null;
     els.scrim.hidden = true;
-    ["createErr", "joinErr", "channelErr", "profileErr"].forEach(function (id) {
+    ["createErr", "joinErr", "channelErr", "profileErr", "inviteErr"].forEach(function (id) {
       els[id].hidden = true;
     });
   }
@@ -652,23 +653,86 @@
       hide();
       await refreshServers();
       await openServer(created.id);
-      toast("Server created. Your ID is " + created.id + " — share it to invite people.");
+      toast("Server created. Open its settings to copy an invite link.");
     } catch (err) {
       fail(els.createErr, err.message);
     }
   });
 
+  // The code box takes an ID or a whole pasted invite link; the server pulls
+  // the ID out of either.
+  async function join(code) {
+    var joined = await api("api/servers/join", { method: "POST", body: { code: code } });
+    hide();
+    showBlank(false);
+    await refreshServers();
+    await openServer(joined.id);
+    toast(joined.already_member ? "You are already in " + joined.name + "." : "Joined " + joined.name + ".");
+  }
+
   els.joinForm.addEventListener("submit", async function (e) {
     e.preventDefault();
     try {
-      var joined = await api("api/servers/join", { method: "POST", body: { code: els.joinCode.value } });
+      await join(els.joinCode.value);
       els.joinCode.value = "";
-      hide();
-      await refreshServers();
-      await openServer(joined.id);
-      toast(joined.already_member ? "You are already in " + joined.name + "." : "Joined " + joined.name + ".");
     } catch (err) {
       fail(els.joinErr, err.message);
+    }
+  });
+
+  /* invite links: <app>/?join=<server ID> */
+
+  function inviteLink(serverId) {
+    return location.origin + location.pathname + "?join=" + serverId;
+  }
+
+  // Read ?join= once and drop it from the address bar, so a reload or a copied
+  // URL does not replay the invite.
+  function takeInvite() {
+    var params = new URLSearchParams(location.search);
+    var code = params.get("join");
+    if (!code) return null;
+    params.delete("join");
+    var rest = params.toString();
+    history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
+    return code;
+  }
+
+  var pendingInvite = null;
+
+  async function showInvite(code) {
+    var invite;
+    try {
+      invite = await api("api/invites/" + encodeURIComponent(code));
+    } catch (err) {
+      toast(err.message);
+      return false;
+    }
+    if (invite.already_member) {
+      showBlank(false);
+      await openServer(invite.id);
+      toast("You are already in " + invite.name + ".");
+      return true;
+    }
+    pendingInvite = invite;
+    els.inviteMark.textContent = initial(invite.name);
+    els.inviteName.textContent = invite.name;
+    els.inviteMeta.textContent =
+      invite.member_count + (invite.member_count === 1 ? " member" : " members") + "  ·  " + invite.id;
+    show("invite");
+    return true;
+  }
+
+  els.inviteAccept.addEventListener("click", async function () {
+    if (!pendingInvite) return;
+    els.inviteAccept.disabled = true;
+    try {
+      await join(pendingInvite.id);
+      pendingInvite = null;
+    } catch (err) {
+      fail(els.inviteErr, err.message);
+    } finally {
+      els.inviteAccept.disabled = false;
     }
   });
 
@@ -737,6 +801,7 @@
   function renderServerModal() {
     var server = state.server;
     els.inviteCode.textContent = server.id;
+    els.inviteLink.value = inviteLink(server.id);
     els.memberAdmin.replaceChildren();
 
     server.members.forEach(function (m) {
@@ -781,6 +846,22 @@
       toast(err.message);
     }
   }
+
+  els.copyLink.addEventListener("click", async function () {
+    var link = inviteLink(state.server.id);
+    try {
+      await navigator.clipboard.writeText(link);
+      toast("Invite link copied.");
+    } catch (err) {
+      els.inviteLink.focus();
+      els.inviteLink.select();
+      toast("Copy failed — the link is selected, copy it by hand.");
+    }
+  });
+
+  els.inviteLink.addEventListener("focus", function () {
+    els.inviteLink.select();
+  });
 
   els.copyCode.addEventListener("click", async function () {
     try {
@@ -863,8 +944,11 @@
     state.servers = await api("api/servers");
     renderMe();
 
+    var invite = takeInvite();
+
     if (!state.servers.length) {
       showBlank(true);
+      if (invite) await showInvite(invite);
       return;
     }
     showBlank(false);
@@ -874,6 +958,9 @@
       (route.serverId && state.servers.some(function (s) { return s.id === route.serverId; }) && route.serverId) ||
       state.servers[0].id;
     await openServer(wanted, route.channelId);
+
+    // An invite goes on top of wherever they usually land.
+    if (invite) await showInvite(invite);
   }
 
   boot();
