@@ -11,7 +11,8 @@ profiles.
 ## Run it
 
 ```sh
-yard dev --port 9880          # http://localhost:9880/hearth/
+yard dev --port 9880          # landing page: http://localhost:9880/hearth/
+                              # the app:      http://localhost:9880/hearth/app/
 ```
 
 There is no sign-up screen and no login code in this repo: Yard Auth signs
@@ -27,19 +28,30 @@ and the `authenticated` service cannot be deployed without it. Locally, a
 | `user:base`      | someone on the Base tier|
 | `trial`          | someone on a trial      |
 
-Switch at `http://localhost:9880/hearth/__yard/auth/login`, or start the server
+Switch at `http://localhost:9880/hearth/app/__yard/auth/login`, or start the server
 with `yard dev --as signed-in`. To be two people at once, open the app in a
 normal window and a private window and pick a different persona in each.
 
 ## How it fits together
 
 ```
-.yard/settings.json          one service, mounted at /, access=authenticated,
-                             database_access=true, objects=[Channel → CHANNELS]
+.yard/settings.json          one service, mounted at /app, access=authenticated,
+                             database_access=true, objects=[Channel → CHANNELS];
+                             landing_page=custom (.yard/landing-page)
 .yard/migrations/0001_init.sql   users, servers, server_members (role), channels
+.yard/landing-page/          the public sales page at the project root
 app/_service.js              the fetch handler (REST) + export class Channel
 app/index.html · styles.css · app.js · live.js    the frontend
 ```
+
+**The landing page.** Everything outside `/app` is the public landing page. It
+reads the Yard Auth session from `app/__yard/auth/me` (one session covers every
+service of the project) and, when someone is signed in, shows their Hearth
+username, email and avatar in the top-right with a menu to open the app or log
+out (`app/__yard/auth/logout`). "Log in" is just a link to `app/`: that service
+is `authenticated`, so the edge sends anonymous visitors through Yard Auth and
+back. The avatar picture comes from `window.yard.ownership()` when Yard has one.
+Try both states locally by switching persona. Custom landing pages need Pro.
 
 **Where state lives.** Structure — who exists, which servers there are, who
 belongs to them with what role, which channels each server has — is in `env.DB`.
