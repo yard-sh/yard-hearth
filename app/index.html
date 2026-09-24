@@ -92,10 +92,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg>
         </div>
         <h1>Welcome to Hearth</h1>
-        <p>Create a server for your group, or join one with the ID a friend sent you.</p>
+        <p>Create a server for your group, or join one with the invite link or ID a friend sent you.</p>
         <div class="blank-actions">
           <button class="btn primary" data-open="create">Create a server</button>
-          <button class="btn ghost" data-open="join">Join with an ID</button>
+          <button class="btn ghost" data-open="join">Join a server</button>
         </div>
       </div>
     </div>
@@ -119,16 +119,32 @@
 
     <div class="modal" id="modal-join" hidden role="dialog" aria-modal="true" aria-labelledby="joinTitle">
       <h2 id="joinTitle">Join a server</h2>
-      <p class="modal-sub">Enter the six-character server ID someone shared with you.</p>
+      <p class="modal-sub">Paste the invite link someone sent you, or type their six-character server ID.</p>
       <form id="joinForm">
-        <label for="joinCode">Server ID</label>
-        <input id="joinCode" class="code-input" maxlength="6" placeholder="A7K2M9" required autocomplete="off" spellcheck="false" />
+        <label for="joinCode">Invite link or server ID</label>
+        <input id="joinCode" maxlength="300" placeholder="A7K2M9 or https://…/app/?join=A7K2M9" required autocomplete="off" spellcheck="false" />
         <p class="err" id="joinErr" hidden></p>
         <div class="modal-actions">
           <button type="button" class="btn ghost" data-close>Cancel</button>
           <button type="submit" class="btn primary">Join</button>
         </div>
       </form>
+    </div>
+
+    <div class="modal invite-modal" id="modal-invite" hidden role="dialog" aria-modal="true" aria-labelledby="inviteName">
+      <p class="invite-kicker">You've been invited to join</p>
+      <div class="invite-server">
+        <span class="invite-mark" id="inviteMark">?</span>
+        <div>
+          <h2 id="inviteName">…</h2>
+          <p class="invite-meta" id="inviteMeta"></p>
+        </div>
+      </div>
+      <p class="err" id="inviteErr" hidden></p>
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" data-close>No thanks</button>
+        <button type="button" class="btn primary" id="inviteAccept">Accept invite</button>
+      </div>
     </div>
 
     <div class="modal" id="modal-channel" hidden role="dialog" aria-modal="true" aria-labelledby="channelTitleHead">
@@ -162,10 +178,14 @@
     <div class="modal wide" id="modal-server" hidden role="dialog" aria-modal="true" aria-labelledby="serverTitle">
       <h2 id="serverTitle">Server</h2>
       <div class="invite">
-        <span class="invite-label">Server ID — share this to invite people</span>
+        <span class="invite-label">Invite people — send the link, or read out the ID</span>
+        <div class="invite-row link">
+          <input id="inviteLink" readonly aria-label="Invite link" />
+          <button type="button" class="btn primary small" id="copyLink">Copy link</button>
+        </div>
         <div class="invite-row">
           <code id="inviteCode">------</code>
-          <button type="button" class="btn ghost small" id="copyCode">Copy</button>
+          <button type="button" class="btn ghost small" id="copyCode">Copy ID</button>
         </div>
       </div>
       <div class="member-admin" id="memberAdmin"></div>

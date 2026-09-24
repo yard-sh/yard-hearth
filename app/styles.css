@@ -941,6 +941,61 @@ svg {
   gap: 12px;
 }
 
+.invite-row.link {
+  margin-bottom: 12px;
+}
+
+.invite-row.link input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--rail);
+  color: var(--text);
+  font-size: 14px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.invite-kicker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.invite-server {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.invite-server h2 {
+  margin: 0;
+}
+
+.invite-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.invite-meta {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
 .invite-row code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 24px;

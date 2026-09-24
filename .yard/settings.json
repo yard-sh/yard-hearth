@@ -6,7 +6,7 @@
     {
       "dir": "app",
       "name": "app",
-      "url": "/",
+      "url": "/app",
       "access": "authenticated",
       "database_access": true,
       "objects": [
@@ -17,6 +17,10 @@
       ]
     }
   ],
+  "landing_page": {
+    "type": "custom",
+    "dir": ".yard/landing-page"
+  },
   "pricing": {
     "tiers": [
       {

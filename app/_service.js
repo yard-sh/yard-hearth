@@ -9,7 +9,7 @@
 // is deliberately no login code anywhere in this app.
 //
 // Two things live in this file. The default export is the fetch handler: the
-// server list, joining by ID, channels, roles, profiles, and the one route
+// server list, joining by ID or invite link, channels, roles, profiles, and the one route
 // that hands a WebSocket to a channel. The Channel class is an object: one
 // instance per channel, declared under "objects" in .yard/settings.json and
 // reached through env.CHANNELS. It holds every open connection to that channel
@@ -146,6 +146,13 @@ async function handleAPI(request, env, url) {
     return json({ error: "not found" }, 404);
   }
 
+  /* invites: what a link or code points at, before joining */
+
+  if (seg[0] === "invites" && seg.length === 2) {
+    if (method === "GET") return previewInvite(env, user, seg[1]);
+    return methodNotAllowed();
+  }
+
   /* the one realtime route */
 
   if (seg[0] === "channels" && seg[2] === "ws" && seg.length === 3) {
@@ -273,9 +280,42 @@ async function allocateCode(env) {
 
 // Everyone who joins with the ID lands as a plain user. Only the creator, and
 // anyone an admin promotes, is an admin.
+// An invite link is the app URL with ?join=<server ID>, so "a link" and "a
+// code" are one thing. Accept either: whatever someone pasted, pull the ID out.
+function inviteCode(value) {
+  const raw = String(value ?? "").trim();
+  const fromLink = raw.match(/[?&]join=([A-Za-z0-9]{6})(?![A-Za-z0-9])/);
+  return (fromLink ? fromLink[1] : raw).toUpperCase();
+}
+
+// What the invite screen shows before someone accepts: the server's name and
+// size. Holding the ID is already enough to join, so this reveals nothing the
+// holder could not see by joining.
+async function previewInvite(env, user, value) {
+  const code = inviteCode(value);
+  if (!CODE_RE.test(code)) return json({ error: "that is not a valid invite" }, 400);
+
+  const row = await env.DB.prepare(
+    "SELECT s.id, s.name," +
+      " (SELECT COUNT(*) FROM server_members m WHERE m.server_id = s.id) AS member_count," +
+      " EXISTS (SELECT 1 FROM server_members m WHERE m.server_id = s.id AND m.user_id = ?2) AS already_member" +
+      " FROM servers s WHERE s.id = ?1",
+  )
+    .bind(code, user)
+    .first();
+  if (!row) return json({ error: "this invite is invalid or the server was deleted" }, 404);
+
+  return json({
+    id: row.id,
+    name: row.name,
+    member_count: Number(row.member_count) || 0,
+    already_member: !!row.already_member,
+  });
+}
+
 async function joinServer(request, env, user) {
   const body = await readJSON(request);
-  const code = String(body.code ?? "").trim().toUpperCase();
+  const code = inviteCode(body.code);
   if (!CODE_RE.test(code)) return json({ error: "that is not a valid server ID" }, 400);
 
   const server = await env.DB.prepare("SELECT id FROM servers WHERE id = ?1").bind(code).first();
