@@ -1,10 +1,10 @@
 // Hearth landing page.
 //
-// Who is looking comes from Yard Auth, never from code in this repo. The app
-// service is mounted at /app, and its __yard/auth/* endpoints are the project's
-// sign-in session (one session covers every service of the project):
-//   app/__yard/auth/me      always 200: { authenticated, user_id, email, ... }
-//   app/__yard/auth/logout  ends the Hearth session, not the Yard account
+// Who is looking comes from Yard Auth, never from code in this repo. One
+// session covers the page and every service of the project:
+//   app/__yard/auth/me                always 200: { authenticated, user_id, email, ... }
+//   __yard/auth/logout?return=/       ends the Hearth session, not the Yard
+//                                     account, and comes back to this page
 // Signing in needs no endpoint of its own: the app is access=authenticated, so
 // following a link to app/ sends an anonymous visitor through Yard Auth and
 // back into the app.
@@ -20,6 +20,7 @@
   var base = location.href.split(/[?#]/)[0];
   if (!/\/$/.test(base) && !/\.html?$/.test(base)) base += "/";
   var APP = new URL("app/", base).href;
+  var LOGOUT = new URL("__yard/auth/logout?return=/", base).href;
 
   var slot = document.getElementById("auth");
   var nav = document.getElementById("nav");
@@ -136,7 +137,7 @@
       ]),
       el("a", { class: "menu-item", role: "menuitem", href: APP, text: "Open Hearth" }),
       el("a", { class: "menu-item", role: "menuitem", href: "https://yard.sh/library/security", text: "Connected apps" }),
-      el("a", { class: "menu-item quiet", role: "menuitem", href: new URL("__yard/auth/logout", APP).href, text: "Log out" }),
+      el("a", { class: "menu-item quiet", role: "menuitem", href: LOGOUT, text: "Log out" }),
     ]);
 
     function setOpen(open) {
@@ -171,7 +172,7 @@
     document.getElementById("closerCta").textContent = "Back to Hearth";
     var foot = document.getElementById("footAuth");
     foot.textContent = "Log out";
-    foot.href = new URL("__yard/auth/logout", APP).href;
+    foot.href = LOGOUT;
   }
 
   // Keep every "Open Hearth" link pointing at the resolved app URL.

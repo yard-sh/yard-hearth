@@ -48,10 +48,11 @@ app/index.html · styles.css · app.js · live.js    the frontend
 reads the Yard Auth session from `app/__yard/auth/me` (one session covers every
 service of the project) and, when someone is signed in, shows their Hearth
 username, email and avatar in the top-right with a menu to open the app or log
-out (`app/__yard/auth/logout`). "Log in" is just a link to `app/`: that service
-is `authenticated`, so the edge sends anonymous visitors through Yard Auth and
-back. The avatar picture comes from `window.yard.ownership()` when Yard has one.
-Try both states locally by switching persona. Custom landing pages need Pro.
+out (`__yard/auth/logout?return=/` at the project root, which comes back to the
+page). "Log in" is just a link to `app/`: that service is `authenticated`, so
+the edge sends anonymous visitors through Yard Auth and back. The avatar
+picture comes from `window.yard.ownership()` when Yard has one. Try both states
+locally by switching persona. Custom landing pages need Pro.
 
 **Where state lives.** Structure — who exists, which servers there are, who
 belongs to them with what role, which channels each server has — is in `env.DB`.
