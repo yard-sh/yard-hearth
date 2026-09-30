@@ -170,10 +170,10 @@ async function handleAPI(request, env, url) {
 async function ensureUser(env, headers, user) {
   const email = headers.get("X-Yard-Email") || "";
   await env.DB.prepare(
-    "INSERT INTO users (id, username, email, seen_at) VALUES (?1, ?2, ?3, datetime('now'))" +
+    "INSERT INTO users (id, username, email, seen_at) VALUES (?1, ?2, ?3, ?4)" +
       " ON CONFLICT(id) DO UPDATE SET email = excluded.email, seen_at = excluded.seen_at",
   )
-    .bind(user, defaultName(user, email), email)
+    .bind(user, defaultName(user, email), email, Date.now())
     .run();
   const row = await env.DB.prepare("SELECT username FROM users WHERE id = ?1").bind(user).first();
   return {
@@ -251,16 +251,17 @@ async function createServer(request, env, user) {
   const id = await allocateCode(env);
   if (!id) return json({ error: "could not allocate a server ID, try again" }, 503);
 
-  await env.DB.prepare("INSERT INTO servers (id, name, owner_id) VALUES (?1, ?2, ?3)")
-    .bind(id, clean, user)
+  const now = Date.now();
+  await env.DB.prepare("INSERT INTO servers (id, name, owner_id, created_at) VALUES (?1, ?2, ?3, ?4)")
+    .bind(id, clean, user, now)
     .run();
   await env.DB.prepare(
-    "INSERT INTO server_members (server_id, user_id, role) VALUES (?1, ?2, ?3)",
+    "INSERT INTO server_members (server_id, user_id, role, joined_at) VALUES (?1, ?2, ?3, ?4)",
   )
-    .bind(id, user, ADMIN)
+    .bind(id, user, ADMIN, now)
     .run();
-  await env.DB.prepare("INSERT INTO channels (id, server_id, name) VALUES (?1, ?2, ?3)")
-    .bind(newId(), id, "general")
+  await env.DB.prepare("INSERT INTO channels (id, server_id, name, created_at) VALUES (?1, ?2, ?3, ?4)")
+    .bind(newId(), id, "general", now)
     .run();
 
   log("server.create", { user: shortId(user), server: id });
@@ -328,9 +329,9 @@ async function joinServer(request, env, user) {
     .first();
   if (!existing) {
     await env.DB.prepare(
-      "INSERT INTO server_members (server_id, user_id, role) VALUES (?1, ?2, ?3)",
+      "INSERT INTO server_members (server_id, user_id, role, joined_at) VALUES (?1, ?2, ?3, ?4)",
     )
-      .bind(code, user, USER)
+      .bind(code, user, USER, Date.now())
       .run();
     log("server.join", { user: shortId(user), server: code });
   }
@@ -427,8 +428,8 @@ async function createChannel(request, env, user, access) {
   }
 
   const id = newId();
-  await env.DB.prepare("INSERT INTO channels (id, server_id, name) VALUES (?1, ?2, ?3)")
-    .bind(id, access.server.id, clean)
+  await env.DB.prepare("INSERT INTO channels (id, server_id, name, created_at) VALUES (?1, ?2, ?3, ?4)")
+    .bind(id, access.server.id, clean, Date.now())
     .run();
   log("channel.create", { user: shortId(user), server: access.server.id, channel: shortId(id) });
   return json({ id, name: clean }, 201);

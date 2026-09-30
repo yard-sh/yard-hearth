@@ -7,6 +7,8 @@
 -- room, which also holds its live connections; the database only knows the
 -- structure: who exists, which servers there are, who belongs to them with
 -- what role, and which channels each server has.
+--
+-- Times are milliseconds since the epoch, written by the service.
 
 -- One row per person who has opened Hearth. username is the editable profile
 -- field; the first visit derives one from the email the edge reports.
@@ -14,7 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   id       TEXT PRIMARY KEY,
   username TEXT NOT NULL,
   email    TEXT NOT NULL DEFAULT '',
-  seen_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  seen_at  INTEGER NOT NULL
 );
 
 -- A server is what Discord calls a guild. Its id doubles as the join code, so
@@ -23,7 +25,7 @@ CREATE TABLE IF NOT EXISTS servers (
   id         TEXT PRIMARY KEY,
   name       TEXT NOT NULL,
   owner_id   TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_servers_owner ON servers (owner_id);
@@ -35,7 +37,7 @@ CREATE TABLE IF NOT EXISTS server_members (
   server_id TEXT NOT NULL,
   user_id   TEXT NOT NULL,
   role      TEXT NOT NULL DEFAULT 'user',
-  joined_at TEXT NOT NULL DEFAULT (datetime('now')),
+  joined_at INTEGER NOT NULL,
   PRIMARY KEY (server_id, user_id)
 );
 
@@ -45,7 +47,7 @@ CREATE TABLE IF NOT EXISTS channels (
   id         TEXT PRIMARY KEY,
   server_id  TEXT NOT NULL,
   name       TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_channels_server ON channels (server_id, created_at);
