@@ -36,7 +36,7 @@ normal window and a private window and pick a different persona in each.
 
 ```
 .yard/settings.json          one service, mounted at /app, access=authenticated,
-                             database_access=true, objects=[Channel → CHANNELS];
+                             database_access=true, rooms=[Channel → CHANNELS];
                              landing_page=custom (.yard/landing-page)
 .yard/migrations/0001_init.sql   users, servers, server_members (role), channels
 .yard/landing-page/          the public sales page at the project root
@@ -56,8 +56,8 @@ locally by switching persona. Custom landing pages need Pro.
 
 **Where state lives.** Structure — who exists, which servers there are, who
 belongs to them with what role, which channels each server has — is in `env.DB`.
-Messages and live connections are in the channel's own object storage: one
-channel is one object, with its own socket set and its own rate budget. That
+Messages and live connections are in the channel's own room storage: one
+channel is one room, with its own socket set and its own rate budget. That
 split is why presence and delivery need no polling.
 
 **Roles.** `server_members.role` is `admin` or `user`, and it is the only
@@ -65,7 +65,7 @@ authority. The creator of a server is inserted as `admin`; everyone who joins
 with the ID starts as `user`. Admins create and delete channels, delete anyone's
 message, and promote or demote others. The owner's role is fixed so a server can
 never be left without an admin. The rule is enforced in the fetch handler for
-REST routes and again inside the object for message deletes, reading the role
+REST routes and again inside the room for message deletes, reading the role
 from the attachment the handler stamped at connect time — never from the client.
 
 **Server IDs are join codes.** Six characters from an alphabet with no `I`, `O`,
@@ -89,5 +89,5 @@ Nothing serves a draft — publishing is the deploy. To try a release before
 buyers reach it, `yard sandbox create preview`, publish, then
 `yard sandbox pin v0.1.0 --sandbox preview` and `yard service open --sandbox preview`.
 
-Contracts: `/docs/v1/platform/services`, `/docs/v1/platform/services/objects`,
+Contracts: `/docs/v1/platform/services`, `/docs/v1/platform/services/rooms`,
 `/docs/v1/platform/services/yard-auth`.

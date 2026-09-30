@@ -409,7 +409,7 @@
           state.peers.set(peer.cid, peer);
         });
         state.peers.set(event.you.cid, event.you);
-        // The object is the authority on the role attached to this
+        // The room is the authority on the role attached to this
         // connection; keep the UI in step with it.
         if (state.server && event.you.role !== state.server.role) {
           state.server.role = event.you.role;

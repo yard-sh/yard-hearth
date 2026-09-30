@@ -10,14 +10,14 @@
 //
 // Two things live in this file. The default export is the fetch handler: the
 // server list, joining by ID or invite link, channels, roles, profiles, and the one route
-// that hands a WebSocket to a channel. The Channel class is an object: one
-// instance per channel, declared under "objects" in .yard/settings.json and
+// that hands a WebSocket to a channel. The Channel class is a room class: one
+// room per channel, declared under "rooms" in .yard/settings.json and
 // reached through env.CHANNELS. It holds every open connection to that channel
 // and that channel's messages, so it is the single place where sends and
 // deletes are ordered.
 //
 // Structure (users, servers, membership + role, channels) is in env.DB.
-// Messages are in the channel's own object storage: one channel is one object
+// Messages are in the channel's own room storage: one channel is one room
 // with its own connections and its own rate budget.
 
 const ADMIN = "admin";
@@ -440,7 +440,7 @@ async function deleteChannel(env, user, access, channelId) {
   if (!channel) return json({ error: "channel not found" }, 404);
 
   await env.DB.prepare("DELETE FROM channels WHERE id = ?1").bind(channel.id).run();
-  // The messages live in the object, so removing the row is only half of it.
+  // The messages live in the room, so removing the row is only half of it.
   await internal(env, channel.id, "/__destroy");
   log("channel.delete", { user: shortId(user), channel: shortId(channel.id) });
   return json({ ok: true });
@@ -507,9 +507,9 @@ async function setRole(request, env, user, access, targetId) {
 
 /* --------------------------------------------------------------- realtime */
 
-// The only route that reaches an object. Membership and role are resolved
-// here, against the database, and travel to the object as headers it can
-// trust: nothing else can reach the object, exactly as nothing but the edge
+// The only route that reaches a room. Membership and role are resolved
+// here, against the database, and travel to the room as headers it can
+// trust: nothing else can reach the room, exactly as nothing but the edge
 // can set X-Yard-*.
 async function connectChannel(request, env, user, channelId) {
   if (typeof channelId !== "string" || !ID_RE.test(channelId)) {
@@ -545,18 +545,18 @@ async function connectChannel(request, env, user, channelId) {
   headers.set("X-Hearth-Name", encodeURIComponent(username));
 
   log("ws.forward", { user: shortId(user), channel: shortId(row.id), role: row.role });
-  return objectFor(env, row.id).fetch(new Request(request, { headers }));
+  return roomFor(env, row.id).fetch(new Request(request, { headers }));
 }
 
-function objectFor(env, channelId) {
+function roomFor(env, channelId) {
   return env.CHANNELS.get(env.CHANNELS.idFromName(channelId));
 }
 
-// Handler-to-object calls that are not upgrades. Clients cannot reach the
-// object directly, so paths under /__ are private by construction.
+// Handler-to-room calls that are not upgrades. Clients cannot reach the
+// room directly, so paths under /__ are private by construction.
 async function internal(env, channelId, path, body) {
   try {
-    return await objectFor(env, channelId).fetch("https://hearth.internal" + path, {
+    return await roomFor(env, channelId).fetch("https://hearth.internal" + path, {
       method: "POST",
       headers: body === undefined ? undefined : { "Content-Type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),

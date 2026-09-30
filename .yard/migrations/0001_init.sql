@@ -4,7 +4,7 @@
 -- on the next deploy. IF NOT EXISTS makes that re-run harmless.
 --
 -- Messages are not here. Each channel's messages live inside that channel's
--- object, which also holds its live connections; the database only knows the
+-- room, which also holds its live connections; the database only knows the
 -- structure: who exists, which servers there are, who belongs to them with
 -- what role, and which channels each server has.
 
