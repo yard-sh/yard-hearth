@@ -85,8 +85,8 @@ yard push                           # upload into a draft release
 yard releases publish v0.1.0        # go live
 ```
 
-Nothing serves a draft — publishing is the deploy. To try a release before
-buyers reach it, `yard sandbox create preview`, publish, then
+Nothing serves a draft: publishing is the deploy. To try a release before
+users reach it, `yard sandbox create preview`, publish, then
 `yard sandbox pin v0.1.0 --sandbox preview` and `yard service open --sandbox preview`.
 
 Contracts: `/docs/v1/platform/services`, `/docs/v1/platform/services/rooms`,
