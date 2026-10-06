@@ -136,7 +136,7 @@
         ]),
       ]),
       el("a", { class: "menu-item", role: "menuitem", href: APP, text: "Open Hearth" }),
-      el("a", { class: "menu-item", role: "menuitem", href: "https://yard.sh/library/security", text: "Connected apps" }),
+      el("a", { class: "menu-item", role: "menuitem", href: "https://yard.sh/profile/security", text: "Connected apps" }),
       el("a", { class: "menu-item quiet", role: "menuitem", href: LOGOUT, text: "Log out" }),
     ]);
 
