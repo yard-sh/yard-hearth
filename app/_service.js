@@ -11,11 +11,11 @@
 //
 // Two things live in this file. The default export is the fetch handler: the
 // server list, joining by ID or invite link, channels, roles, profiles, and the one route
-// that hands a WebSocket to a channel. The Channel class is a room class: one
-// room per channel, declared under "rooms" in .yard/settings.json and
-// reached through env.CHANNELS. It holds every open connection to that channel
-// and that channel's messages, so it is the single place where sends and
-// deletes are ordered.
+// that hands a WebSocket to a channel. The Channel class implements the
+// Channel room type: one room per channel, declared under "rooms" in
+// .yard/settings.json and reached through env.CHANNELS. It holds every open
+// connection to that channel and that channel's messages, so it is the single
+// place where sends and deletes are ordered.
 //
 // Structure (users, servers, membership + role, channels) is in env.DB.
 // Messages are in the channel's own room storage: one channel is one room
