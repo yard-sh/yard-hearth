@@ -97,6 +97,9 @@
           <button class="btn primary" data-open="create">Create a server</button>
           <button class="btn ghost" data-open="join">Join a server</button>
         </div>
+        <p class="guest-hint" id="guestHint" hidden>
+          You're a guest. <a id="guestSignin" href="__yard/auth/login">Sign in</a> to keep your servers on every device.
+        </p>
       </div>
     </div>
 
@@ -140,6 +143,9 @@
           <p class="invite-meta" id="inviteMeta"></p>
         </div>
       </div>
+      <p class="guest-hint" id="inviteGuest" hidden>
+        You'll join as <b id="inviteAs"></b>. <a id="inviteSignin" href="__yard/auth/login">Sign in</a> first to join with your Yard account.
+      </p>
       <p class="err" id="inviteErr" hidden></p>
       <div class="modal-actions">
         <button type="button" class="btn ghost" data-close>No thanks</button>
@@ -173,12 +179,16 @@
           <button type="submit" class="btn primary">Save</button>
         </div>
       </form>
+      <div class="account-row">
+        <p id="accountText"></p>
+        <a class="btn small primary" id="accountLink" href="__yard/auth/login">Sign in</a>
+      </div>
     </div>
 
     <div class="modal wide" id="modal-server" hidden role="dialog" aria-modal="true" aria-labelledby="serverTitle">
       <h2 id="serverTitle">Server</h2>
       <div class="invite">
-        <span class="invite-label">Invite people — send the link, or read out the ID</span>
+        <span class="invite-label">Invite people: send the link, or read out the ID</span>
         <div class="invite-row link">
           <input id="inviteLink" readonly aria-label="Invite link" />
           <button type="button" class="btn primary small" id="copyLink">Copy link</button>

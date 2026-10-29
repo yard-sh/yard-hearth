@@ -1,8 +1,9 @@
 // Hearth frontend.
 //
 // All fetches are relative ("api/me", never "/api/me") so the app works under
-// any mount path and inside a sandbox. The route lives in location.hash for
-// the same reason: the document path never moves, so relative URLs stay valid.
+// any mount path and inside a sandbox. The route lives in the query string for
+// the same reason: the document path never moves, so relative URLs stay valid,
+// and a sign-in round trip, which keeps the path and query, comes back to it.
 (function () {
   "use strict";
 
@@ -36,6 +37,7 @@
     "channelForm", "channelName", "channelErr", "profileForm", "profileName",
     "profileErr", "inviteCode", "copyCode", "inviteLink", "copyLink", "memberAdmin",
     "serverDanger", "toast", "inviteMark", "inviteName", "inviteMeta", "inviteErr", "inviteAccept",
+    "inviteGuest", "inviteAs", "inviteSignin", "guestHint", "guestSignin", "accountText", "accountLink",
   ].forEach(function (id) {
     els[id] = $(id);
   });
@@ -159,7 +161,7 @@
         title: server.name + "  ·  " + server.id,
         text: initial(server.name),
         onclick: function () {
-          openServer(server.id);
+          openServer(server.id, null, true);
         },
       });
       els.railList.appendChild(pill);
@@ -331,7 +333,7 @@
     function group(label, list, isHere) {
       if (!list.length) return;
       els.membersList.appendChild(
-        el("div", { class: "member-group", text: label + " — " + list.length }),
+        el("div", { class: "member-group", text: label + " · " + list.length }),
       );
       list.forEach(function (m) {
         els.membersList.appendChild(
@@ -465,6 +467,15 @@
         renderMembers();
         break;
 
+      case "adopt":
+        state.messages.forEach(function (m) {
+          if (m.author_id !== event.from) return;
+          m.author_id = event.to;
+          if (event.name) m.author_name = event.name;
+        });
+        renderMessages();
+        break;
+
       case "role":
         if (state.server) {
           state.server.members.forEach(function (m) {
@@ -505,17 +516,36 @@
 
   /* ------------------------------------------------------------ navigation */
 
-  function writeHash() {
-    var next = state.serverId ? "#" + state.serverId + (state.channelId ? "/" + state.channelId : "") : "";
-    if (location.hash !== next) {
-      suppressHash = true;
-      location.hash = next;
+  // Moving somewhere adds a history entry; correcting a route that no longer
+  // leads anywhere replaces the current one.
+  function writeRoute(push) {
+    var params = new URLSearchParams();
+    if (state.serverId) params.set("server", state.serverId);
+    if (state.serverId && state.channelId) params.set("channel", state.channelId);
+    var next = location.pathname + (params.toString() ? "?" + params : "");
+    if (next !== location.pathname + location.search) {
+      if (push) history.pushState(null, "", next);
+      else history.replaceState(null, "", next);
     }
+    renderAccount();
   }
 
-  var suppressHash = false;
+  function readRoute() {
+    var params = new URLSearchParams(location.search);
+    return { serverId: params.get("server"), channelId: params.get("channel") };
+  }
 
-  async function openServer(serverId, channelId) {
+  // Links from before the route moved to the query used #<server>/<channel>.
+  function upgradeLegacyRoute() {
+    var legacy = location.hash.match(/^#([A-Za-z0-9]{6})(?:\/([A-Za-z0-9_-]+))?$/);
+    if (!legacy) return;
+    var params = new URLSearchParams(location.search);
+    params.set("server", legacy[1]);
+    if (legacy[2]) params.set("channel", legacy[2]);
+    history.replaceState(null, "", location.pathname + "?" + params);
+  }
+
+  async function openServer(serverId, channelId, push) {
     if (!serverId) return;
     try {
       var detail = await api("api/servers/" + serverId);
@@ -526,7 +556,7 @@
         (detail.channels[0] && detail.channels[0].id) ||
         null;
       state.channelId = target;
-      writeHash();
+      writeRoute(push);
       renderAll();
       if (target) connect(target);
       else disconnect();
@@ -535,7 +565,7 @@
       state.serverId = null;
       state.server = null;
       state.channelId = null;
-      writeHash();
+      writeRoute(false);
       renderAll();
     }
   }
@@ -543,7 +573,7 @@
   function openChannel(channelId) {
     if (channelId === state.channelId) return;
     state.channelId = channelId;
-    writeHash();
+    writeRoute(true);
     renderSidebar();
     renderTopbar();
     renderMessages();
@@ -564,7 +594,7 @@
     });
     if (!stillThere) {
       state.channelId = state.server.channels[0] ? state.server.channels[0].id : null;
-      writeHash();
+      writeRoute(false);
       if (state.channelId) connect(state.channelId);
       else disconnect();
     }
@@ -579,7 +609,7 @@
       state.server = null;
       state.channelId = null;
       showBlank(true);
-      writeHash();
+      writeRoute(false);
       return;
     }
     showBlank(false);
@@ -652,7 +682,7 @@
       els.createName.value = "";
       hide();
       await refreshServers();
-      await openServer(created.id);
+      await openServer(created.id, null, true);
       toast("Server created. Open its settings to copy an invite link.");
     } catch (err) {
       fail(els.createErr, err.message);
@@ -666,7 +696,7 @@
     hide();
     showBlank(false);
     await refreshServers();
-    await openServer(joined.id);
+    await openServer(joined.id, null, true);
     toast(joined.already_member ? "You are already in " + joined.name + "." : "Joined " + joined.name + ".");
   }
 
@@ -715,6 +745,11 @@
       return true;
     }
     pendingInvite = invite;
+    // A guest can join right away and keeps the membership when they sign in
+    // later; signing in first comes back to this same invite.
+    els.inviteGuest.hidden = state.me.signed_in;
+    els.inviteAs.textContent = state.me.username;
+    els.inviteSignin.href = authHref("login", "/?join=" + encodeURIComponent(invite.id));
     els.inviteMark.textContent = initial(invite.name);
     els.inviteName.textContent = invite.name;
     els.inviteMeta.textContent =
@@ -855,7 +890,7 @@
     } catch (err) {
       els.inviteLink.focus();
       els.inviteLink.select();
-      toast("Copy failed — the link is selected, copy it by hand.");
+      toast("Copy failed. The link is selected, so copy it by hand.");
     }
   });
 
@@ -868,7 +903,7 @@
       await navigator.clipboard.writeText(state.server.id);
       toast("Server ID copied.");
     } catch (err) {
-      toast("Copy failed — the ID is " + state.server.id);
+      toast("Copy failed. The ID is " + state.server.id + ".");
     }
   });
 
@@ -913,37 +948,64 @@
     if (state.live.send({ t: "send", body: body })) {
       els.composerInput.value = "";
     } else {
-      toast("Still reconnecting — try that again in a moment.");
+      toast("Still reconnecting. Try that again in a moment.");
     }
   });
 
+  /* --------------------------------------------------------------- account */
+
+  // Sign-in and sign-out come back to this page. `return` is a path under the
+  // service, which is where this page lives.
+  function authHref(action, back) {
+    return "__yard/auth/" + action + "?return=" + encodeURIComponent(back || "/" + location.search);
+  }
+
+  function renderAccount() {
+    if (!state.me) return;
+    var signedIn = state.me.signed_in;
+    els.guestHint.hidden = signedIn;
+    els.guestSignin.href = authHref("login");
+    els.accountText.textContent = signedIn
+      ? "Signed in with Yard" + (state.me.email ? " as " + state.me.email : "") + "."
+      : "You're using Hearth as a guest. Sign in to keep your servers and messages on every device.";
+    els.accountLink.textContent = signedIn ? "Sign out" : "Sign in";
+    els.accountLink.href = signedIn ? authHref("logout", "/") : authHref("login");
+    els.accountLink.className = "btn small " + (signedIn ? "ghost" : "primary");
+  }
+
+  // A signed-out visitor is a guest: the edge issues the browser a guest id
+  // and sends it with every request from then on, sockets included.
+  async function loadMe() {
+    try {
+      return await api("api/me");
+    } catch (err) {
+      if (err.status !== 401) throw err;
+    }
+    await api("__yard/auth/guest", { method: "POST" });
+    return api("api/me");
+  }
+
   /* ------------------------------------------------------------------ boot */
 
-  window.addEventListener("hashchange", function () {
-    if (suppressHash) {
-      suppressHash = false;
-      return;
-    }
-    var route = parseHash();
+  window.addEventListener("popstate", function () {
+    var route = readRoute();
     if (route.serverId && route.serverId !== state.serverId) openServer(route.serverId, route.channelId);
     else if (route.channelId && route.channelId !== state.channelId) openChannel(route.channelId);
   });
 
-  function parseHash() {
-    var parts = location.hash.replace(/^#/, "").split("/");
-    return { serverId: parts[0] || null, channelId: parts[1] || null };
-  }
-
   async function boot() {
     try {
-      state.me = await api("api/me");
+      state.me = await loadMe();
     } catch (err) {
       document.body.textContent = "Could not load Hearth: " + err.message;
       return;
     }
+    if (state.me.forget_guest) fetch("__yard/auth/guest", { method: "DELETE" }).catch(function () {});
     state.servers = await api("api/servers");
     renderMe();
+    renderAccount();
 
+    upgradeLegacyRoute();
     var invite = takeInvite();
 
     if (!state.servers.length) {
@@ -953,7 +1015,7 @@
     }
     showBlank(false);
 
-    var route = parseHash();
+    var route = readRoute();
     var wanted =
       (route.serverId && state.servers.some(function (s) { return s.id === route.serverId; }) && route.serverId) ||
       state.servers[0].id;

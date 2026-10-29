@@ -1,13 +1,18 @@
 // Hearth backend.
 //
 // No ports, no listen(): Yard runs this as a fetch handler. Requests arrive
-// with the app path rooted at "/" and, for signed-in visitors, trusted
-// identity headers the edge verified:
+// with the app path rooted at "/" and trusted identity headers the edge
+// verified. Signed-in visitors carry
 //   X-Yard-User-Id, X-Yard-Email, X-Yard-Entitlement, X-Yard-Tier,
 //   X-Yard-Tier-Key, X-Yard-Sandbox
-// Clients can never spoof these: the edge strips inbound X-Yard-* first, and
-// `yard dev` stamps the same headers locally from the persona you pick. There
-// is deliberately no login code anywhere in this app.
+// and a browser that asked for a guest id (POST __yard/auth/guest) carries
+// X-Yard-Guest-Id, signed in or not. Clients can never spoof these: the edge
+// strips inbound X-Yard-* first, and `yard dev` stamps the same headers
+// locally from the persona you pick. There is deliberately no login code
+// anywhere in this app.
+//
+// The service is public: a signed-out visitor uses Hearth as a guest, and
+// signing in moves everything the guest made to their Yard account.
 //
 // Two things live in this file. The default export is the fetch handler: the
 // server list, joining by ID or invite link, channels, roles, profiles, and the one route
@@ -44,6 +49,8 @@ const CODE_LENGTH = 6;
 const CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/;
 const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
 
+const GUEST_PREFIX = "guest-";
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -56,13 +63,14 @@ export default {
 
     if (url.pathname.startsWith("/api/")) {
       const started = Date.now();
+      const userId = request.headers.get("X-Yard-User-Id");
       try {
         const response = await handleAPI(request, env, url);
         log("request", {
           method: request.method,
           path: url.pathname,
           status: response.status,
-          user: shortId(request.headers.get("X-Yard-User-Id")),
+          user: userId ? shortId(userId) : request.headers.get("X-Yard-Guest-Id") ? "guest" : "-",
           ms: Date.now() - started,
         });
         return response;
@@ -80,11 +88,13 @@ export default {
 /* ------------------------------------------------------------------- api */
 
 async function handleAPI(request, env, url) {
-  // access: "authenticated" means the edge has already turned anonymous
-  // visitors away. This is the backstop, not the gate.
-  const user = request.headers.get("X-Yard-User-Id");
+  // A visitor with neither id has not asked for a guest id yet. The app does
+  // that on this 401 and retries.
+  const me = await identity(request.headers);
   const method = request.method;
-  if (!user) return json({ error: "sign in to use Hearth" }, 401);
+  if (!me.id) return json({ error: "sign in or continue as a guest", code: "no_identity" }, 401);
+  if (me.userId && me.guest) await adoptGuest(env, me);
+  const user = me.id;
 
   // ["api", "servers", "<id>", "channels"] -> the leading "api" is dropped.
   const [, ...seg] = url.pathname.split("/").filter(Boolean);
@@ -92,8 +102,8 @@ async function handleAPI(request, env, url) {
   /* profile */
 
   if (seg[0] === "me" && seg.length === 1) {
-    if (method === "GET") return getMe(request, env, user);
-    if (method === "PATCH") return renameMe(request, env, user);
+    if (method === "GET") return getMe(request, env, me);
+    if (method === "PATCH") return renameMe(request, env, me);
     return methodNotAllowed();
   }
 
@@ -157,7 +167,7 @@ async function handleAPI(request, env, url) {
   /* the one realtime route */
 
   if (seg[0] === "channels" && seg[2] === "ws" && seg.length === 3) {
-    if (method === "GET") return connectChannel(request, env, user, seg[1]);
+    if (method === "GET") return connectChannel(request, env, me, seg[1]);
     return methodNotAllowed();
   }
 
@@ -166,43 +176,113 @@ async function handleAPI(request, env, url) {
 
 /* -------------------------------------------------------------- identity */
 
+// Everyone is keyed by their Yard user id, or by a key derived from their
+// guest id while signed out. The guest id itself is a credential (whoever
+// holds it acts as that guest), and member lists and messages show every
+// member's key to everyone in the server, so a guest's key is a hash of it.
+async function identity(headers) {
+  const userId = headers.get("X-Yard-User-Id") || "";
+  const guestId = headers.get("X-Yard-Guest-Id") || "";
+  const guest = guestId ? await guestKey(guestId) : "";
+  return { id: userId || guest, userId, guest, email: headers.get("X-Yard-Email") || "" };
+}
+
+async function guestKey(guestId) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(guestId));
+  const hex = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return GUEST_PREFIX + hex.slice(0, 32);
+}
+
 // There is no display-name header, so the first visit derives one from the
 // email and the profile screen lets people change it.
-async function ensureUser(env, headers, user) {
-  const email = headers.get("X-Yard-Email") || "";
+async function ensureUser(env, me) {
   await env.DB.prepare(
     "INSERT INTO users (id, username, email, seen_at) VALUES (?1, ?2, ?3, ?4)" +
       " ON CONFLICT(id) DO UPDATE SET email = excluded.email, seen_at = excluded.seen_at",
   )
-    .bind(user, defaultName(user, email), email, Date.now())
+    .bind(me.id, defaultName(me), me.email, Date.now())
     .run();
-  const row = await env.DB.prepare("SELECT username FROM users WHERE id = ?1").bind(user).first();
+  const row = await env.DB.prepare("SELECT username FROM users WHERE id = ?1").bind(me.id).first();
   return {
-    user_id: user,
-    username: row ? row.username : defaultName(user, email),
-    email,
-    entitlement: headers.get("X-Yard-Entitlement") || "none",
+    user_id: me.id,
+    username: row ? row.username : defaultName(me),
+    email: me.email,
+    signed_in: !!me.userId,
+    // The guest's rows are the account's now, so the browser can forget the
+    // guest id. A later sign-out starts a fresh guest.
+    forget_guest: !!(me.userId && me.guest),
   };
 }
 
-function defaultName(user, email) {
-  const local = (email.split("@")[0] || "").replace(/[^A-Za-z0-9._-]/g, "").slice(0, MAX_USERNAME);
-  return local || "user-" + shortId(user);
+function defaultName(me) {
+  if (!me.userId) return GUEST_PREFIX + me.guest.slice(GUEST_PREFIX.length, GUEST_PREFIX.length + 4);
+  const local = (me.email.split("@")[0] || "").replace(/[^A-Za-z0-9._-]/g, "").slice(0, MAX_USERNAME);
+  return local || "user-" + shortId(me.userId);
 }
 
-async function getMe(request, env, user) {
-  return json(await ensureUser(env, request.headers, user));
+// A guest who signs in arrives with both ids. Their servers, memberships and
+// name move to the account; where both were in one server, the account keeps
+// the higher role. Their messages are in the channels' rooms, so each channel
+// is told to re-author them, the same fan-out a rename uses.
+async function adoptGuest(env, me) {
+  const { guest, userId } = me;
+  const held = await env.DB.prepare(
+    "SELECT 1 FROM users WHERE id = ?1 UNION ALL SELECT 1 FROM server_members WHERE user_id = ?1 LIMIT 1",
+  )
+    .bind(guest)
+    .first();
+  if (!held) return;
+
+  const guestName = defaultName({ userId: "", guest, email: "" });
+  await env.DB.batch([
+    env.DB.prepare(
+      "UPDATE server_members SET role = ?3 WHERE user_id = ?2 AND server_id IN" +
+        " (SELECT server_id FROM server_members WHERE user_id = ?1 AND role = ?3)",
+    ).bind(guest, userId, ADMIN),
+    env.DB.prepare(
+      "DELETE FROM server_members WHERE user_id = ?1 AND server_id IN" +
+        " (SELECT server_id FROM server_members WHERE user_id = ?2)",
+    ).bind(guest, userId),
+    env.DB.prepare("UPDATE server_members SET user_id = ?2 WHERE user_id = ?1").bind(guest, userId),
+    env.DB.prepare("UPDATE servers SET owner_id = ?2 WHERE owner_id = ?1").bind(guest, userId),
+    env.DB.prepare(
+      "INSERT INTO users (id, username, email, seen_at)" +
+        " SELECT ?2, CASE WHEN username = ?4 THEN ?5 ELSE username END, ?3, ?6 FROM users WHERE id = ?1" +
+        " ON CONFLICT(id) DO NOTHING",
+    ).bind(guest, userId, me.email, guestName, defaultName(me), Date.now()),
+    env.DB.prepare("DELETE FROM users WHERE id = ?1").bind(guest),
+  ]);
+
+  const row = await env.DB.prepare("SELECT username FROM users WHERE id = ?1").bind(userId).first();
+  const { results } = await env.DB.prepare(
+    "SELECT c.id FROM channels c" +
+      " JOIN server_members m ON m.server_id = c.server_id AND m.user_id = ?1" +
+      " LIMIT ?2",
+  )
+    .bind(userId, FANOUT_LIMIT)
+    .all();
+  await Promise.all(
+    (results || []).map((r) =>
+      internal(env, r.id, "/__adopt", { from: guest, to: userId, name: row ? row.username : "" }),
+    ),
+  );
+  log("guest.adopt", { user: shortId(userId), channels: (results || []).length });
+}
+
+async function getMe(request, env, me) {
+  return json(await ensureUser(env, me));
 }
 
 // The profile system: one editable field. The new name is pushed into every
 // channel the person belongs to, so their old messages and any open
 // connection show it immediately rather than after a reconnect.
-async function renameMe(request, env, user) {
+async function renameMe(request, env, me) {
   const { username } = await readJSON(request);
   const clean = text(username, MAX_USERNAME);
   if (!clean) return json({ error: "pick a username" }, 400);
 
-  const me = await ensureUser(env, request.headers, user);
+  const user = me.id;
+  const profile = await ensureUser(env, me);
   await env.DB.prepare("UPDATE users SET username = ?1 WHERE id = ?2").bind(clean, user).run();
 
   const { results } = await env.DB.prepare(
@@ -217,7 +297,7 @@ async function renameMe(request, env, user) {
   );
 
   log("me.rename", { user: shortId(user), channels: (results || []).length });
-  return json({ ...me, username: clean });
+  return json({ ...profile, username: clean });
 }
 
 /* ---------------------------------------------------------------- servers */
@@ -240,14 +320,7 @@ async function createServer(request, env, user) {
   const clean = text(name, MAX_SERVER_NAME);
   if (!clean) return json({ error: "give your server a name" }, 400);
 
-  const mine = await env.DB.prepare(
-    "SELECT COUNT(*) AS n FROM server_members WHERE user_id = ?1",
-  )
-    .bind(user)
-    .first();
-  if (mine && mine.n >= MAX_SERVERS_PER_USER) {
-    return json({ error: "you are in too many servers" }, 400);
-  }
+  if (await inTooManyServers(env, user)) return json({ error: "you are in too many servers" }, 400);
 
   const id = await allocateCode(env);
   if (!id) return json({ error: "could not allocate a server ID, try again" }, 503);
@@ -268,6 +341,13 @@ async function createServer(request, env, user) {
   log("server.create", { user: shortId(user), server: id });
   const access = await serverAccess(env, user, id);
   return json(await serverDetail(env, user, access), 201);
+}
+
+async function inTooManyServers(env, user) {
+  const mine = await env.DB.prepare("SELECT COUNT(*) AS n FROM server_members WHERE user_id = ?1")
+    .bind(user)
+    .first();
+  return !!mine && mine.n >= MAX_SERVERS_PER_USER;
 }
 
 // The server's ID is its join code, so there is no second concept to explain.
@@ -329,6 +409,7 @@ async function joinServer(request, env, user) {
     .bind(code, user)
     .first();
   if (!existing) {
+    if (await inTooManyServers(env, user)) return json({ error: "you are in too many servers" }, 400);
     await env.DB.prepare(
       "INSERT INTO server_members (server_id, user_id, role, joined_at) VALUES (?1, ?2, ?3, ?4)",
     )
@@ -513,7 +594,8 @@ async function setRole(request, env, user, access, targetId) {
 // here, against the database, and travel to the room as headers it can
 // trust: nothing else can reach the room, exactly as nothing but the edge
 // can set X-Yard-*.
-async function connectChannel(request, env, user, channelId) {
+async function connectChannel(request, env, me, channelId) {
+  const user = me.id;
   if (typeof channelId !== "string" || !ID_RE.test(channelId)) {
     return json({ error: "channel not found" }, 404);
   }
@@ -531,15 +613,14 @@ async function connectChannel(request, env, user, channelId) {
     return json({ error: "expected a WebSocket" }, 426);
   }
 
-  const me = await env.DB.prepare("SELECT username FROM users WHERE id = ?1").bind(user).first();
-  const username = me
-    ? me.username
-    : defaultName(user, request.headers.get("X-Yard-Email") || "");
+  const profile = await env.DB.prepare("SELECT username FROM users WHERE id = ?1").bind(user).first();
+  const username = profile ? profile.username : defaultName(me);
 
   const headers = new Headers(request.headers);
   for (const key of [...headers.keys()]) {
     if (key.toLowerCase().startsWith("x-hearth-")) headers.delete(key);
   }
+  headers.set("X-Hearth-User", user);
   headers.set("X-Hearth-Channel", row.id);
   headers.set("X-Hearth-Channel-Name", encodeURIComponent(row.name));
   headers.set("X-Hearth-Server-Name", encodeURIComponent(row.server_name));
@@ -607,6 +688,7 @@ export class Channel {
       if (url.pathname === "/__destroy") return this.destroy();
       if (url.pathname === "/__meta") return this.updateMeta(request);
       if (url.pathname === "/__rename") return this.renameAuthor(request);
+      if (url.pathname === "/__adopt") return this.adoptAuthor(request);
       if (url.pathname === "/__role") return this.applyRole(request);
     }
     return new Response("Not found", { status: 404 });
@@ -615,9 +697,9 @@ export class Channel {
   /* connections */
 
   async join(request) {
-    const userId = request.headers.get("X-Yard-User-Id") || "";
-    if (!userId) return new Response("sign in", { status: 401 });
     const h = request.headers;
+    const userId = h.get("X-Hearth-User") || "";
+    if (!userId) return new Response("no identity", { status: 401 });
 
     // The handler just read these rows, so this is the freshest copy.
     this.meta.channel = h.get("X-Hearth-Channel") || this.meta.channel;
@@ -766,6 +848,21 @@ export class Channel {
       if (peer) socket.serializeAttachment({ ...peer, name: clean });
     }
     this.broadcast({ t: "rename", user_id: body.user_id, name: clean });
+    return json({ ok: true });
+  }
+
+  async adoptAuthor(request) {
+    const body = await readJSON(request);
+    const name = text(body.name, MAX_USERNAME);
+    if (!body.from || !body.to) return json({ ok: false }, 400);
+
+    this.ctx.storage.sql.exec(
+      "UPDATE messages SET author_id = ?, author_name = COALESCE(NULLIF(?, ''), author_name) WHERE author_id = ?",
+      body.to,
+      name,
+      body.from,
+    );
+    this.broadcast({ t: "adopt", from: body.from, to: body.to, name });
     return json({ ok: true });
   }
 

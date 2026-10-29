@@ -1,4 +1,4 @@
-/* Hearth — Discord-lookalike theme. Dark by default, one accent (blurple). */
+/* Hearth: Discord-lookalike theme. Dark by default, one accent (blurple). */
 
 :root {
   --rail: #1e1f22;
@@ -791,6 +791,25 @@ svg {
   justify-content: center;
 }
 
+.guest-hint {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.blank .guest-hint {
+  margin: 24px 0 0;
+}
+
+.guest-hint a {
+  color: #00a8fc;
+}
+
+.guest-hint b {
+  color: var(--text);
+}
+
 /* --------------------------------------------------------------- dialogs */
 
 .scrim {
@@ -882,8 +901,10 @@ svg {
 }
 
 .btn {
+  display: inline-block;
   border: 0;
   border-radius: 4px;
+  text-decoration: none;
   padding: 10px 16px;
   font-size: 14px;
   font-weight: 500;
@@ -916,6 +937,27 @@ svg {
 
 .btn.danger:hover {
   background: rgba(218, 55, 60, 0.12);
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.account-row p {
+  flex: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.account-row .btn {
+  flex: none;
 }
 
 .invite {

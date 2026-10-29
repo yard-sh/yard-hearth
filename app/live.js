@@ -1,8 +1,8 @@
 // Hearth realtime client.
 //
-// One connection per open channel. Every close is expected — Yard closes a
+// One connection per open channel. Every close is expected: Yard closes a
 // WebSocket session after 24 hours, and `yard dev` restarts the runtime on
-// every save — so the only correct client is one that always reconnects.
+// every save, so the only correct client is one that always reconnects.
 (function () {
   "use strict";
 

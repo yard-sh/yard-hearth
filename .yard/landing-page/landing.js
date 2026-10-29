@@ -3,11 +3,11 @@
 // Who is looking comes from Yard Auth, never from code in this repo. One
 // session covers the page and every service of the project:
 //   app/__yard/auth/me                always 200: { authenticated, user_id, email, ... }
+//   app/__yard/auth/login?return=/    signs in through Yard Auth and lands in
+//                                     the app
 //   __yard/auth/logout?return=/       ends the Hearth session, not the Yard
 //                                     account, and comes back to this page
-// Signing in needs no endpoint of its own: the app is access=authenticated, so
-// following a link to app/ sends an anonymous visitor through Yard Auth and
-// back into the app.
+// The app is public, so a plain link to app/ opens it as a guest.
 //
 // window.yard.ownership() (injected by the edge through embed.js) adds the
 // Yard avatar when there is one. Every URL is relative so the page works at
@@ -20,6 +20,7 @@
   var base = location.href.split(/[?#]/)[0];
   if (!/\/$/.test(base) && !/\.html?$/.test(base)) base += "/";
   var APP = new URL("app/", base).href;
+  var LOGIN = new URL("app/__yard/auth/login?return=/", base).href;
   var LOGOUT = new URL("__yard/auth/logout?return=/", base).href;
 
   var slot = document.getElementById("auth");
@@ -60,7 +61,7 @@
       var res = await fetch(new URL(path, APP), {
         credentials: "same-origin",
         headers: { Accept: "application/json" },
-        redirect: "error", // a gate redirect means "not signed in", not data
+        redirect: "error", // a redirect is never data
       });
       if (!res.ok) return null;
       return await res.json();
@@ -106,8 +107,9 @@
   }
 
   function renderSignedOut() {
-    slot.replaceChildren(el("a", { class: "pill light small", href: APP, text: "Log in" }));
+    slot.replaceChildren(el("a", { class: "pill light small", href: LOGIN, text: "Log in" }));
     slot.dataset.state = "out";
+    document.getElementById("footAuth").href = LOGIN;
   }
 
   function renderSignedIn(who) {
