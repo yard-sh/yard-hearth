@@ -127,7 +127,7 @@
       [avatar(who), el("span", { class: "me-name", text: who.name }), el("span", { class: "chev", "aria-hidden": "true" })],
     );
 
-    var sub = who.entitlement === "owner" ? "Project owner" : who.tier || "";
+    var sub = who.entitlement === "team" ? "Team member" : who.tier || "";
     var menu = el("div", { class: "menu", id: menuId, role: "menu", hidden: "" }, [
       el("div", { class: "menu-head" }, [
         avatar(who),

@@ -26,7 +26,7 @@ stands in for Yard Auth, and each persona is a different user:
 | `anonymous`      | a signed-out guest       |
 | `signed-in`      | a signed-in visitor      |
 | `user:base`      | someone on the Base tier |
-| `member`         | you, the project owner   |
+| `team`           | you, a team member       |
 
 Switch at `http://localhost:9880/hearth/app/__yard/auth/login`, or start the server
 with `yard dev --as signed-in`. A persona is a cookie, and so is the guest id,
