@@ -39,7 +39,7 @@ one of them).
 ```
 .yard/settings.json          one service, mounted at /app, access=public,
                              database_access=true, rooms=[Channel → CHANNELS];
-                             landing_page=custom (.yard/landing-page)
+                             landing_page=.yard/landing-page
 .yard/migrations/0001_init.sql   users, servers, server_members (role), channels
 .yard/landing-page/          the public sales page at the project root
 app/_service.js              the fetch handler (REST) + export class Channel
@@ -54,7 +54,7 @@ out (`__yard/auth/logout?return=/` at the project root, which comes back to the
 page). "Log in" is a link to `app/__yard/auth/login?return=/`, which signs in
 through Yard Auth and lands in the app; a plain link to `app/` opens it as a
 guest. The avatar picture comes from `window.yard.ownership()` when Yard has
-one. Try both states locally by switching persona. Custom landing pages need
+one. Try both states locally by switching persona. Landing pages need
 Basic or Pro.
 
 **Guests and accounts.** A signed-out visitor asks the edge for a guest id
