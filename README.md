@@ -37,9 +37,9 @@ one of them).
 ## How it fits together
 
 ```
-.yard/settings.json          one service, mounted at /app, access=public,
-                             database_access=true, rooms=[Channel → CHANNELS];
-                             landing_page=.yard/landing-page
+.yard/settings.json          the landing page at / (dir .yard/landing-page), and the app
+                             service mounted at /app, access=public,
+                             database_access=true, rooms=[Channel → CHANNELS]
 .yard/migrations/0001_init.sql   users, servers, server_members (role), channels
 .yard/landing-page/          the public sales page at the project root
 app/_service.js              the fetch handler (REST) + export class Channel
